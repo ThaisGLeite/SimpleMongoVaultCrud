@@ -17,6 +17,9 @@ func main() {
 	defer mongoClient.Disconnect(context.Background())
 	fmt.Printf("Connected to MongoDB! Database name: %s\n", dbName)
 
+	// Create a MongoDB repository
+	userRepo := database.NewUserRepository(mongoClient, dbName)
+
 	// Start the server
-	web.StartServer()
+	web.StartServer(userRepo) // pass the userRepo as a parameter to StartServer
 }
