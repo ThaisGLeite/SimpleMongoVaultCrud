@@ -1,0 +1,49 @@
+version: "3.8"
+services:
+  vault:
+    build:
+      context: ./vault
+    ports:
+      - 8200:8200
+    cap_add:
+      - IPC_LOCK
+    environment:
+      - VAULT_ADDR=http://vault:8200 # Use HTTP
+      - SKIP_SETCAP=true
+    networks:
+      - mynetwork
+
+  mongodb:
+    build:
+      context: ./mongodb
+    ports:
+      - 27017:27017
+    volumes:
+      - ./mongodb/data:/data/db
+      - ./mongodb/mongodb.conf:/etc/mongodb.conf # Mount the MongoDB configuration file into the container
+    command: mongod --config /etc/mongodb.conf
+    networks:
+      - mynetwork
+
+  api:
+    build:
+      context: ../ # root of project
+      dockerfile: docker/app/Dockerfile
+    ports:
+      - 8080:8080
+    depends_on:
+      - mongodb
+      - vault
+    environment:
+      - VAULT_ADDR=http://vault:8200 # Use HTTP
+      - VAULT_TOKEN=${VAULT_TOKEN}
+      - PORT=8080
+      - GIN_MODE=release
+      - DB_HOST=mongodb
+      - DB_PORT=27017
+      - DB_NAME=devenv
+    networks:
+      - mynetwork
+
+networks:
+  mynetwork:
