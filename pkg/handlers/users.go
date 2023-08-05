@@ -54,13 +54,13 @@ func (u *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	createdUser, err := u.userService.CreateUser(c, newUser)
+	_, err := u.userService.CreateUser(c, newUser)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, createdUser)
+	c.JSON(http.StatusOK, gin.H{"message": "User created successfully"})
 }
 
 // UpdateUser updates a user
@@ -78,13 +78,13 @@ func (u *UserHandler) UpdateUser(c *gin.Context) {
 		return
 	}
 
-	user, err := u.userService.UpdateUser(c, id, updatedUser)
+	_, err := u.userService.UpdateUser(c, id, updatedUser)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, user)
+	c.JSON(http.StatusOK, gin.H{"message": "User updated successfully"})
 }
 
 // DeleteUser deletes a user

@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"simplecrud/pkg/models"
@@ -10,6 +11,7 @@ import (
 	"simplecrud/utils"
 	"time"
 
+	"github.com/go-playground/validator"
 	"github.com/hashicorp/vault/api"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -21,13 +23,15 @@ type UserRepository struct {
 	client     *mongo.Client
 	database   string
 	collection string
+	validate   *validator.Validate
 }
 
 func NewUserRepository(client *mongo.Client, database string) user.Repository {
 	return &UserRepository{
 		client:     client,
 		database:   database,
-		collection: "users", // this could be any collection you want to store users in
+		collection: "users",
+		validate:   validator.New(),
 	}
 }
 
@@ -71,25 +75,50 @@ func (r *UserRepository) FindById(ctx context.Context, id string) (models.User, 
 }
 
 func (r *UserRepository) Create(ctx context.Context, user models.User) (models.User, error) {
+	err := r.validate.Struct(user)
+	if err != nil {
+		return user, err
+	}
 	collection := r.client.Database(r.database).Collection(r.collection)
-	_, err := collection.InsertOne(ctx, user)
+	_, err = collection.InsertOne(ctx, user)
 
 	return user, err
 }
 
 func (r *UserRepository) Update(ctx context.Context, id string, user models.User) (models.User, error) {
-	// Convert string to ObjectId
-	objID, _ := primitive.ObjectIDFromHex(id)
+	err := r.validate.Struct(user)
+	if err != nil {
+		return user, err
+	}
+
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return user, errors.New("invalid ID")
+	}
+
+	// Create a map to hold the fields to update
+	updateMap := make(bson.M)
+
+	// Check each field in the User struct and add it to the update map if it is not empty
+	if user.Name != "" {
+		updateMap["name"] = user.Name
+	}
+	if user.Age != 0 {
+		updateMap["age"] = user.Age
+	}
+	if user.Email != "" {
+		updateMap["email"] = user.Email
+	}
+	if user.Password != "" {
+		updateMap["password"] = user.Password
+	}
+	if user.Address != "" {
+		updateMap["address"] = user.Address
+	}
 
 	collection := r.client.Database(r.database).Collection(r.collection)
-	_, err := collection.UpdateOne(ctx, bson.M{"_id": objID}, bson.M{
-		"$set": bson.M{
-			"name":     user.Name,
-			"age":      user.Age,
-			"email":    user.Email,
-			"password": user.Password,
-			"address":  user.Address,
-		},
+	_, err = collection.UpdateOne(ctx, bson.M{"_id": objID}, bson.M{
+		"$set": updateMap,
 	})
 
 	return user, err
