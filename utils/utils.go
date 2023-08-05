@@ -22,8 +22,11 @@ func HandleError(msg string, err error) {
 }
 
 func IsStrongPassword(password string) bool {
-	// At least 8 characters long, one uppercase letter, one lowercase letter, one number and one special character
-	regex := `^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,}$`
-	match, _ := regexp.MatchString(regex, password)
-	return match
+	hasMinLength := len(password) >= 8
+	hasUppercase := regexp.MustCompile(`[A-Z]`).MatchString(password)
+	hasLowercase := regexp.MustCompile(`[a-z]`).MatchString(password)
+	hasNumber := regexp.MustCompile(`[0-9]`).MatchString(password)
+	hasSpecial := regexp.MustCompile(`[!@#$%^&*-]`).MatchString(password)
+
+	return hasMinLength && hasUppercase && hasLowercase && hasNumber && hasSpecial
 }

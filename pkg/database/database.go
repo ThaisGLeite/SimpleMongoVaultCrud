@@ -19,6 +19,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+const (
+	// timeout duration in seconds
+	timeout = 10 * time.Second
+)
+
 type UserRepository struct {
 	client     *mongo.Client
 	database   string
@@ -35,7 +40,7 @@ func NewUserRepository(client *mongo.Client, database string) user.Repository {
 	}
 }
 
-func ConnectDB(vaultClient *api.Client) (*mongo.Client, string) {
+func ConnectDB(vaultClient *api.Client) (*mongo.Client, string, error) {
 	secretValues := vault.GetMongoDBSecret(vaultClient)
 
 	username, userOk := secretValues["username"]
@@ -53,23 +58,28 @@ func ConnectDB(vaultClient *api.Client) (*mongo.Client, string) {
 		log.Fatal("DB_HOST, DB_PORT or DB_NAME not set")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	connectionString := fmt.Sprintf("mongodb://%s:%s@%s:%s", username, password, dbHost, dbPort)
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(connectionString))
-	utils.HandleError("Failed to connect to MongoDB", err)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to connect to MongoDB: %w", err)
+	}
 
-	return client, dbName
+	return client, dbName, nil
 }
 
 func (r *UserRepository) FindById(ctx context.Context, id string) (models.User, error) {
 	// Convert string to ObjectId
-	objID, _ := primitive.ObjectIDFromHex(id)
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return models.User{}, fmt.Errorf("invalid id: %w", err)
+	}
 
 	var user models.User
 	collection := r.client.Database(r.database).Collection(r.collection)
-	err := collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&user)
+	err = collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&user)
 
 	return user, err
 }
@@ -126,10 +136,12 @@ func (r *UserRepository) Update(ctx context.Context, id string, user models.User
 
 func (r *UserRepository) Delete(ctx context.Context, id string) error {
 	// Convert string to ObjectId
-	objID, _ := primitive.ObjectIDFromHex(id)
-
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return fmt.Errorf("invalid id: %w", err)
+	}
 	collection := r.client.Database(r.database).Collection(r.collection)
-	_, err := collection.DeleteOne(ctx, bson.M{"_id": objID})
+	_, err = collection.DeleteOne(ctx, bson.M{"_id": objID})
 
 	return err
 }
