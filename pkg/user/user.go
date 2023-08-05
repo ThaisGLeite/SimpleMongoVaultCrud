@@ -10,6 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// Define the Service interface for user operations.
 type Service interface {
 	GetAllUsers(ctx context.Context) ([]models.User, error)
 	GetUser(ctx context.Context, id string) (models.User, error)
@@ -18,10 +19,12 @@ type Service interface {
 	DeleteUser(ctx context.Context, id string) error
 }
 
+// UserService implements the Service interface.
 type UserService struct {
 	userRepo Repository
 }
 
+// Define the Repository interface for database operations.
 type Repository interface {
 	FindAll(ctx context.Context) ([]models.User, error)
 	FindById(ctx context.Context, id string) (models.User, error)
@@ -30,64 +33,60 @@ type Repository interface {
 	Delete(ctx context.Context, id string) error
 }
 
-var isAlpha = regexp.MustCompile(`^[a-zA-Z]+$`).MatchString
+// Regular expressions to validate user name and id.
+// Precompile the regular expressions for efficiency.
+var (
+	isAlpha         = regexp.MustCompile(`^[a-zA-Z]+$`)
+	isValidObjectId = regexp.MustCompile(`^[0-9a-fA-F]{24}$`)
+)
 
+// NewService creates a new UserService with the provided user repository.
 func NewService(userRepo Repository) *UserService {
 	return &UserService{
 		userRepo: userRepo,
 	}
 }
 
-// Implement the Service interface
+// GetAllUsers retrieves all users from the repository.
 func (s *UserService) GetAllUsers(ctx context.Context) ([]models.User, error) {
 	return s.userRepo.FindAll(ctx)
 }
 
-// Implement the Service interface
+// GetUser retrieves a user by ID from the repository.
+// It checks if the provided ID is a valid UUID.
 func (s *UserService) GetUser(ctx context.Context, id string) (models.User, error) {
-	// Check if id is valid UUID
-	if !isValidObjectId(id) {
+	if !isValidObjectId.MatchString(id) {
 		return models.User{}, errors.New("invalid user ID")
 	}
-
 	return s.userRepo.FindById(ctx, id)
 }
 
+// CreateUser creates a new user in the repository.
+// It validates the user name and password before creation, and hashes the password.
 func (s *UserService) CreateUser(ctx context.Context, user models.User) (models.User, error) {
-	// Check if user name is valid
-	if user.Name == "" || len(user.Name) > 50 || !isAlpha(user.Name) {
+	if user.Name == "" || len(user.Name) > 50 || !isAlpha.MatchString(user.Name) {
 		return models.User{}, errors.New("invalid user name")
 	}
-
-	// Check if password is valid
 	if user.Password == "" {
 		return models.User{}, errors.New("password cannot be empty")
 	}
-
-	// Check if password is strong
 	if !utils.IsStrongPassword(user.Password) {
 		return models.User{}, errors.New("password isn't strong enough, it should have at least 8 characters, one uppercase letter, one lowercase letter, one number and one special character")
 	}
-
-	// Hash password before storing
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return models.User{}, err
 	}
 	user.Password = string(hashedPassword)
-
 	return s.userRepo.Create(ctx, user)
 }
 
+// UpdateUser updates a user by ID in the repository.
 func (s *UserService) UpdateUser(ctx context.Context, id string, user models.User) (models.User, error) {
 	return s.userRepo.Update(ctx, id, user)
 }
 
+// DeleteUser deletes a user by ID from the repository.
 func (s *UserService) DeleteUser(ctx context.Context, id string) error {
 	return s.userRepo.Delete(ctx, id)
-}
-
-func isValidObjectId(id string) bool {
-	var objectIdRegex = regexp.MustCompile(`^[0-9a-fA-F]{24}$`)
-	return objectIdRegex.MatchString(id)
 }

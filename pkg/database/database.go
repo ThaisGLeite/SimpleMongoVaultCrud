@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"simplecrud/pkg/models"
 	"simplecrud/pkg/user"
 	"simplecrud/pkg/vault"
@@ -20,8 +19,10 @@ import (
 )
 
 const (
-	// timeout duration in seconds
-	timeout = 10 * time.Second
+	timeout         = 10 * time.Second
+	usersCollection = "users"
+	ErrInvalidID    = "invalid id"
+	ErrDBConnection = "failed to connect to MongoDB"
 )
 
 type UserRepository struct {
@@ -35,53 +36,63 @@ func NewUserRepository(client *mongo.Client, database string) user.Repository {
 	return &UserRepository{
 		client:     client,
 		database:   database,
-		collection: "users",
+		collection: usersCollection,
 		validate:   validator.New(),
 	}
 }
 
-func ConnectDB(vaultClient *api.Client) (*mongo.Client, string, error) {
+// ConnectDB establishes a connection to the MongoDB database
+func ConnectDB(ctx context.Context, vaultClient *api.Client) (*mongo.Client, string, error) {
+	// Get the secrets from vault
 	secretValues := vault.GetMongoDBSecret(vaultClient)
 
 	username, userOk := secretValues["username"]
 	password, passOk := secretValues["password"]
 
+	// Check if username and password are present in the secret
 	if !userOk || !passOk {
-		log.Fatal("Username or password not found in secret")
+		return nil, "", errors.New("username or password not found in secret")
 	}
 
 	dbHost := utils.GetEnv("DB_HOST", "localhost")
 	dbPort := utils.GetEnv("DB_PORT", "27017")
 	dbName := utils.GetEnv("DB_NAME", "devenv")
 
+	// Check if DB_HOST, DB_PORT or DB_NAME are not set
 	if dbHost == "" || dbPort == "" || dbName == "" {
-		log.Fatal("DB_HOST, DB_PORT or DB_NAME not set")
+		return nil, "", errors.New("DB_HOST, DB_PORT or DB_NAME not set")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
+	// Connect to MongoDB
 	connectionString := fmt.Sprintf("mongodb://%s:%s@%s:%s", username, password, dbHost, dbPort)
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(connectionString))
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to connect to MongoDB: %w", err)
+		return nil, "", fmt.Errorf("%s: %w", ErrDBConnection, err)
+	}
+
+	// Check the connection
+	err = client.Ping(context.Background(), nil)
+	if err != nil {
+		return nil, "", fmt.Errorf("%s: %w", ErrDBConnection, err)
 	}
 
 	return client, dbName, nil
 }
 
 func (r *UserRepository) FindById(ctx context.Context, id string) (models.User, error) {
-	// Convert string to ObjectId
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return models.User{}, fmt.Errorf("invalid id: %w", err)
+		return models.User{}, fmt.Errorf("%s: %w", ErrInvalidID, err)
 	}
 
 	var user models.User
 	collection := r.client.Database(r.database).Collection(r.collection)
 	err = collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&user)
+	if err != nil {
+		return models.User{}, fmt.Errorf("failed to find user: %w", err)
+	}
 
-	return user, err
+	return user, nil
 }
 
 func (r *UserRepository) Create(ctx context.Context, user models.User) (models.User, error) {
@@ -91,8 +102,11 @@ func (r *UserRepository) Create(ctx context.Context, user models.User) (models.U
 	}
 	collection := r.client.Database(r.database).Collection(r.collection)
 	_, err = collection.InsertOne(ctx, user)
+	if err != nil {
+		return models.User{}, fmt.Errorf("failed to create user: %w", err)
+	}
 
-	return user, err
+	return user, nil
 }
 
 func (r *UserRepository) Update(ctx context.Context, id string, user models.User) (models.User, error) {
@@ -103,13 +117,10 @@ func (r *UserRepository) Update(ctx context.Context, id string, user models.User
 
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return user, errors.New("invalid ID")
+		return user, errors.New(ErrInvalidID)
 	}
 
-	// Create a map to hold the fields to update
 	updateMap := make(bson.M)
-
-	// Check each field in the User struct and add it to the update map if it is not empty
 	if user.Name != "" {
 		updateMap["name"] = user.Name
 	}
@@ -130,47 +141,46 @@ func (r *UserRepository) Update(ctx context.Context, id string, user models.User
 	_, err = collection.UpdateOne(ctx, bson.M{"_id": objID}, bson.M{
 		"$set": updateMap,
 	})
+	if err != nil {
+		return models.User{}, fmt.Errorf("failed to update user: %w", err)
+	}
 
-	return user, err
+	return user, nil
 }
 
 func (r *UserRepository) Delete(ctx context.Context, id string) error {
-	// Convert string to ObjectId
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		return fmt.Errorf("invalid id: %w", err)
+		return fmt.Errorf("%s: %w", ErrInvalidID, err)
 	}
 	collection := r.client.Database(r.database).Collection(r.collection)
 	_, err = collection.DeleteOne(ctx, bson.M{"_id": objID})
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
 
-	return err
+	return nil
 }
 
 func (r *UserRepository) FindAll(ctx context.Context) ([]models.User, error) {
 	collection := r.client.Database(r.database).Collection(r.collection)
-
-	// Create an empty slice to store the decoded users
 	var users []models.User
-
-	// Use the collection's Find method to get all documents
 	cursor, err := collection.Find(ctx, bson.M{})
 	if err != nil {
-		return users, err
+		return users, fmt.Errorf("failed to find users: %w", err)
 	}
 	defer cursor.Close(ctx)
 
-	// Iterate through the cursor and decode each document one at a time
 	for cursor.Next(ctx) {
 		var user models.User
 		if err = cursor.Decode(&user); err != nil {
-			return users, err
+			return users, fmt.Errorf("failed to decode user: %w", err)
 		}
 		users = append(users, user)
 	}
 
-	// Check if the cursor encountered any errors while iterating
 	if err = cursor.Err(); err != nil {
-		return users, err
+		return users, fmt.Errorf("failed to iterate users: %w", err)
 	}
 
 	return users, nil
