@@ -6,16 +6,12 @@ import (
 	"fmt"
 	"simplecrud/pkg/models"
 	pkguser "simplecrud/pkg/user"
-	"simplecrud/pkg/vault"
-	"simplecrud/utils"
 	"time"
 
 	"github.com/go-playground/validator"
-	"github.com/hashicorp/vault/api"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 const (
@@ -41,44 +37,6 @@ func NewUserRepository(client *mongo.Client, database string) pkguser.Repository
 		collection: usersCollection,
 		validate:   validator.New(), // Initialize validator for user input validation
 	}
-}
-
-// ConnectDB establishes a connection to the MongoDB database
-func ConnectDB(ctx context.Context, vaultClient *api.Client) (*mongo.Client, string, error) {
-	// Get the secrets from vault
-	secretValues := vault.GetMongoDBSecret(vaultClient)
-
-	username, userOk := secretValues["username"]
-	password, passOk := secretValues["password"]
-
-	// Check if username and password are present in the secret
-	if !userOk || !passOk {
-		return nil, "", errors.New("username or password not found in secret")
-	}
-
-	dbHost := utils.GetEnv("DB_HOST", "localhost")
-	dbPort := utils.GetEnv("DB_PORT", "27017")
-	dbName := utils.GetEnv("DB_NAME", "devenv")
-
-	// Check if DB_HOST, DB_PORT or DB_NAME are not set
-	if dbHost == "" || dbPort == "" || dbName == "" {
-		return nil, "", errors.New("DB_HOST, DB_PORT or DB_NAME not set")
-	}
-
-	// Connect to MongoDB
-	connectionString := fmt.Sprintf("mongodb://%s:%s@%s:%s", username, password, dbHost, dbPort)
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(connectionString))
-	if err != nil {
-		return nil, "", fmt.Errorf("%s: %w", ErrDBConnection, err)
-	}
-
-	// Check the connection
-	err = client.Ping(context.Background(), nil)
-	if err != nil {
-		return nil, "", fmt.Errorf("%s: %w", ErrDBConnection, err)
-	}
-
-	return client, dbName, nil
 }
 
 // FindById finds a user by ID in the MongoDB collection

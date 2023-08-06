@@ -39,7 +39,7 @@ type Repository interface {
 // Regular expressions to validate user name and id.
 // Precompile the regular expressions for efficiency.
 var (
-	isAlpha         = regexp.MustCompile(`^[a-zA-Z]+$`)
+	isAlpha         = regexp.MustCompile(`^[a-zA-Z\s]+$`)
 	isValidObjectId = regexp.MustCompile(`^[0-9a-fA-F]{24}$`)
 )
 
@@ -67,16 +67,21 @@ func (s *UserService) GetUser(ctx context.Context, id string) (models.User, erro
 // CreateUser creates a new user in the repository.
 // It validates the user name and password before creation, and hashes the password.
 func (s *UserService) CreateUser(ctx context.Context, user models.User) (models.User, error) {
-	if user.Name == "" || len(user.Name) > 50 || !isAlpha.MatchString(user.Name) {
+	// Validate user name length and content
+	if len(user.Name) < 3 || len(user.Name) > 50 || !isAlpha.MatchString(user.Name) {
 		return models.User{}, errors.New("invalid user name")
 	}
-	if user.Password == "" {
-		return models.User{}, errors.New("password cannot be empty")
+	// Validate password length
+	if len(user.Password) < 8 || len(user.Password) > 128 {
+		return models.User{}, errors.New("password must be between 8 and 128 characters")
 	}
+	// Check password strength
 	if !utils.IsStrongPassword(user.Password) {
-		return models.User{}, errors.New("password isn't strong enough, it should have at least 8 characters, one uppercase letter, one lowercase letter, one number and one special character")
+		return models.User{}, errors.New("password isn't strong enough, it should have at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character")
 	}
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	// Hash the password with a custom cost factor
+	cost := 12
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), cost)
 	if err != nil {
 		return models.User{}, err
 	}

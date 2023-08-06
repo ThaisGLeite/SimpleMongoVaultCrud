@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"simplecrud/pkg/database"
@@ -15,26 +18,28 @@ func main() {
 	vaultClient := vault.NewVaultClient()
 
 	// Connect to MongoDB using credentials retrieved from Vault.
-	// The connection is attempted with retries, adhering to an exponential backoff strategy.
 	mongoClient, dbName, err := database.ConnectWithRetries(vaultClient)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// Initialize the user repository using the connected MongoDB client.
-	// This repository provides an interface to interact with user-related data in the database.
+	// Initialize the user repository.
 	userRepo := database.NewUserRepository(mongoClient, dbName)
 
-	// Start the web server, providing the user repository for handling user-related HTTP requests.
-	web.StartServer(userRepo)
+	// Start the web server in a goroutine so we can listen for shutdown signals.
+	go web.StartServer(userRepo)
 
-	// Prepare for MongoDB client disconnection with a 10-second timeout.
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	// Listen for termination signals.
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	<-sig
 
 	// Disconnect the MongoDB client.
-	// Proper disconnection ensures that all connections to the database are cleanly closed.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 	if err = mongoClient.Disconnect(ctx); err != nil {
 		log.Fatalf("Failed to disconnect from database: %v", err)
 	}
+
+	log.Println("Shutdown complete.")
 }

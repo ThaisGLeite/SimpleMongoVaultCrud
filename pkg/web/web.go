@@ -39,6 +39,16 @@ func StartServer(userRepo user.Repository) {
 	// Use the Recovery middleware to recover from any panics and write a 500 if it happens.
 	r.Use(gin.Recovery())
 
+	// Secure headers middleware
+	r.Use(func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("X-XSS-Protection", "1; mode=block")
+		c.Header("Content-Security-Policy", "default-src 'self'")
+		// Other headers as needed
+		c.Next()
+	})
+
 	// Create a new rate limiter. This will limit to 1 request/second.
 	limiter := tollbooth.NewLimiter(1, nil)
 
