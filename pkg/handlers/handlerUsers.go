@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"simplecrud/pkg/models"
 	user "simplecrud/pkg/user"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -85,7 +86,13 @@ func (u *UserHandler) UpdateUser(c *gin.Context) {
 
 	_, err := u.userService.UpdateUser(c, id, updatedUser)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error. " + err.Error()})
+		// Identify if it's a validation error or ID parsing error
+		if strings.Contains(err.Error(), "validation failed") ||
+			strings.Contains(err.Error(), "ErrInvalidID") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Bad request. " + err.Error()})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error. " + err.Error()})
+		}
 		return
 	}
 
