@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"simplecrud/pkg/models"
-	"simplecrud/pkg/user"
+	user "simplecrud/pkg/user"
 
 	"github.com/gin-gonic/gin"
 )
@@ -40,7 +40,7 @@ func (u *UserHandler) GetUser(c *gin.Context) {
 		return
 	}
 
-	user, err := u.userService.GetUser(c, id)
+	usuario, err := u.userService.GetUser(c, id)
 	if err != nil {
 		if errors.Is(err, user.ErrNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
@@ -49,8 +49,7 @@ func (u *UserHandler) GetUser(c *gin.Context) {
 		}
 		return
 	}
-
-	c.JSON(http.StatusOK, user)
+	c.JSON(http.StatusOK, usuario)
 }
 
 // CreateUser handles the HTTP request to create a new user

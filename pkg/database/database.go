@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"simplecrud/pkg/models"
-	"simplecrud/pkg/user"
+	pkguser "simplecrud/pkg/user"
 	"simplecrud/pkg/vault"
 	"simplecrud/utils"
 	"time"
@@ -32,7 +32,7 @@ type UserRepository struct {
 	validate   *validator.Validate
 }
 
-func NewUserRepository(client *mongo.Client, database string) user.Repository {
+func NewUserRepository(client *mongo.Client, database string) pkguser.Repository {
 	return &UserRepository{
 		client:     client,
 		database:   database,
@@ -89,6 +89,10 @@ func (r *UserRepository) FindById(ctx context.Context, id string) (models.User, 
 	collection := r.client.Database(r.database).Collection(r.collection)
 	err = collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&user)
 	if err != nil {
+		// Check if the error is a "not found" error.
+		if err == mongo.ErrNoDocuments {
+			return models.User{}, pkguser.ErrNotFound
+		}
 		return models.User{}, fmt.Errorf("failed to find user: %w", err)
 	}
 

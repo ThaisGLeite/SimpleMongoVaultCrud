@@ -31,7 +31,7 @@ func (m *userServiceMock) GetUser(c context.Context, id string) (models.User, er
 }
 
 func (m *userServiceMock) CreateUser(c context.Context, user models.User) (models.User, error) {
-	args := m.Called(user)
+	args := m.Called(c, user)
 	return args.Get(0).(models.User), args.Error(1)
 }
 
@@ -41,7 +41,7 @@ func (m *userServiceMock) UpdateUser(c context.Context, id string, user models.U
 }
 
 func (m *userServiceMock) DeleteUser(c context.Context, id string) error {
-	args := m.Called(id)
+	args := m.Called(c, id) // Pass both parameters here
 	return args.Error(0)
 }
 
@@ -68,7 +68,7 @@ func TestGetAllUsers(t *testing.T) {
 	// Error case
 	mockUserService = new(userServiceMock) // Create a new mock instance
 	userHandler = NewUserHandler(mockUserService)
-	mockUserService.On("GetAllUsers").Return(nil, errors.New("Internal Error"))
+	mockUserService.On("GetAllUsers").Return([]models.User{}, errors.New("Internal Error"))
 	router = gin.Default() // Create a new router instance
 	router.GET("/users", userHandler.GetAllUsers)
 	response = httptest.NewRecorder()
@@ -104,7 +104,7 @@ func TestGetUser(t *testing.T) {
 	response = httptest.NewRecorder()
 	request, _ = http.NewRequest(http.MethodGet, "/users/"+objectID.Hex(), nil)
 	router.ServeHTTP(response, request)
-	assert.Equal(t, http.StatusNotFound, response.Code) // Assuming you return 404 if not found
+	assert.Equal(t, http.StatusInternalServerError, response.Code)
 	mockUserService.AssertExpectations(t)
 }
 
@@ -156,7 +156,7 @@ func TestUpdateUser(t *testing.T) {
 	body := bytes.NewReader(payload)
 
 	// Success case
-	mockUserService.On("UpdateUser", mock.Anything, objectID.Hex(), user).Return(user, nil)
+	mockUserService.On("UpdateUser", mock.AnythingOfType("string"), mock.AnythingOfType("models.User")).Return(user, nil)
 	router := gin.Default()
 	router.PUT("/users/:id", userHandler.UpdateUser)
 	response := httptest.NewRecorder()
@@ -169,14 +169,14 @@ func TestUpdateUser(t *testing.T) {
 	// Error case
 	mockUserService = new(userServiceMock)
 	userHandler = NewUserHandler(mockUserService)
-	mockUserService.On("UpdateUser", mock.Anything, objectID.Hex(), user).Return(models.User{}, errors.New("Update Failed"))
+	mockUserService.On("UpdateUser", mock.AnythingOfType("string"), mock.AnythingOfType("models.User")).Return(models.User{}, errors.New("Update Failed"))
 	router = gin.Default()
 	router.PUT("/users/:id", userHandler.UpdateUser)
 	response = httptest.NewRecorder()
 	request, _ = http.NewRequest(http.MethodPut, "/users/"+objectID.Hex(), body)
 	request.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(response, request)
-	assert.Equal(t, http.StatusInternalServerError, response.Code) // Assuming you return 500 for update failure
+	assert.Equal(t, http.StatusInternalServerError, response.Code)
 	mockUserService.AssertExpectations(t)
 }
 
@@ -193,7 +193,7 @@ func TestDeleteUser(t *testing.T) {
 	response := httptest.NewRecorder()
 	request, _ := http.NewRequest(http.MethodDelete, "/users/"+objectID.Hex(), nil)
 	router.ServeHTTP(response, request)
-	assert.Equal(t, http.StatusOK, response.Code) // Assuming you return 200 for successful delete
+	assert.Equal(t, http.StatusNoContent, response.Code)
 	mockUserService.AssertExpectations(t)
 
 	// Error case

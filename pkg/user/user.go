@@ -10,6 +10,9 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// ErrNotFound is returned when a user is not found.
+var ErrNotFound = errors.New("user not found")
+
 // Define the Service interface for user operations.
 type Service interface {
 	GetAllUsers(ctx context.Context) ([]models.User, error)
