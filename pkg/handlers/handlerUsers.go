@@ -12,7 +12,7 @@ import (
 
 // UserHandler struct holds a userService for user operations
 type UserHandler struct {
-	userService user.Service // Assuming a Service interface is defined in the user package
+	userService user.Service
 }
 
 // NewUserHandler initializes a new UserHandler
@@ -53,7 +53,9 @@ func (u *UserHandler) GetUser(c *gin.Context) {
 	c.JSON(http.StatusOK, usuario)
 }
 
-// CreateUser handles the HTTP request to create a new user
+// CreateUser handles the HTTP request to create a new user.
+// It first validates the request body and then calls the CreateUser service.
+// Upon successful creation, it returns a success message.
 func (u *UserHandler) CreateUser(c *gin.Context) {
 	var newUser models.User
 	if err := c.ShouldBindJSON(&newUser); err != nil {
@@ -70,7 +72,10 @@ func (u *UserHandler) CreateUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "User created successfully"})
 }
 
-// UpdateUser handles the HTTP request to update a user
+// UpdateUser handles the HTTP request to update an existing user.
+// It validates the request parameters and body and then calls the UpdateUser service.
+// If an error occurs (e.g., validation or ID parsing error), an error message is returned.
+// Upon successful update, it returns a success message.
 func (u *UserHandler) UpdateUser(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -99,7 +104,9 @@ func (u *UserHandler) UpdateUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "User updated successfully"})
 }
 
-// DeleteUser handles the HTTP request to delete a user
+// DeleteUser handles the HTTP request to delete a user.
+// It first validates the request parameter (user ID) and then calls the DeleteUser service.
+// Upon successful deletion, it returns a success message.
 func (u *UserHandler) DeleteUser(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {

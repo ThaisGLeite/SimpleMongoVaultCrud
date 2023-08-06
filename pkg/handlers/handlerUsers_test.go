@@ -17,32 +17,38 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
+// userServiceMock struct is used for mocking user service
 type userServiceMock struct {
 	mock.Mock
 }
 
+// GetAllUsers mocks the function to get all users
 func (m *userServiceMock) GetAllUsers(c context.Context) ([]models.User, error) {
 	args := m.Called()
 	return args.Get(0).([]models.User), args.Error(1)
 }
 
+// GetUser mocks the function to get a single user by ID
 func (m *userServiceMock) GetUser(c context.Context, id string) (models.User, error) {
 	args := m.Called(id)
 	return args.Get(0).(models.User), args.Error(1)
 }
 
+// CreateUser mocks the function to create a new user
 func (m *userServiceMock) CreateUser(c context.Context, user models.User) (models.User, error) {
 	args := m.Called(c, user)
 	return args.Get(0).(models.User), args.Error(1)
 }
 
+// UpdateUser mocks the function to update a user by ID
 func (m *userServiceMock) UpdateUser(c context.Context, id string, user models.User) (models.User, error) {
 	args := m.Called(id, user)
 	return args.Get(0).(models.User), args.Error(1)
 }
 
+// DeleteUser mocks the function to delete a user by ID
 func (m *userServiceMock) DeleteUser(c context.Context, id string) error {
-	args := m.Called(c, id) // Pass both parameters here
+	args := m.Called(c, id)
 	return args.Error(0)
 }
 
@@ -67,6 +73,7 @@ func TestGetAllUsers(t *testing.T) {
 	mockUserService.AssertExpectations(t)
 
 	// Error case
+	// Handling other cases like when an error occurs
 	mockUserService = new(userServiceMock) // Create a new mock instance
 	userHandler = NewUserHandler(mockUserService)
 	mockUserService.On("GetAllUsers").Return([]models.User{}, errors.New("Internal Error"))
@@ -79,6 +86,7 @@ func TestGetAllUsers(t *testing.T) {
 	mockUserService.AssertExpectations(t)
 }
 
+// TestGetUserSuccess defines the tests for a successful GetUser request
 func TestGetUserSuccess(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockUserService := new(userServiceMock)
@@ -96,6 +104,7 @@ func TestGetUserSuccess(t *testing.T) {
 	mockUserService.AssertExpectations(t)
 }
 
+// TestGetUserError defines the tests for an error in a GetUser request
 func TestGetUserError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockUserService := new(userServiceMock)
@@ -112,6 +121,7 @@ func TestGetUserError(t *testing.T) {
 	mockUserService.AssertExpectations(t)
 }
 
+// TestCreateUserSuccess defines the tests for a successful CreateUser request
 func TestCreateUserSuccess(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockUserService := new(userServiceMock)
@@ -142,6 +152,7 @@ func TestCreateUserSuccess(t *testing.T) {
 	mockUserService.AssertExpectations(t)
 }
 
+// TestCreateUserError defines the tests for an error in a CreateUser request
 func TestCreateUserError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockUserService := new(userServiceMock)
@@ -172,6 +183,7 @@ func TestCreateUserError(t *testing.T) {
 	mockUserService.AssertExpectations(t)
 }
 
+// TestUpdateUserSuccess defines the tests for a successful UpdateUser request
 func TestUpdateUserSuccess(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockUserService := new(userServiceMock)
@@ -193,6 +205,7 @@ func TestUpdateUserSuccess(t *testing.T) {
 	mockUserService.AssertExpectations(t)
 }
 
+// TestUpdateUserError defines the tests for an error in an UpdateUser request
 func TestUpdateUserError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockUserService := new(userServiceMock)
@@ -214,6 +227,7 @@ func TestUpdateUserError(t *testing.T) {
 	mockUserService.AssertExpectations(t)
 }
 
+// TestDeleteUser defines the tests for deleting a user including success and error cases
 func TestDeleteUser(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockUserService := new(userServiceMock)

@@ -8,7 +8,7 @@ services:
     cap_add:
       - IPC_LOCK
     environment:
-      - VAULT_ADDR=http://vault:8200 # Use HTTP
+      - VAULT_ADDR=http://vault:8200 # Use HTTP for dev environment
       - SKIP_SETCAP=true
     networks:
       - mynetwork
@@ -35,7 +35,7 @@ services:
       - mongodb
       - vault
     environment:
-      - VAULT_ADDR=http://vault:8200 # Use HTTP
+      - VAULT_ADDR=http://vault:8200 # Use HTTP for dev environment
       - VAULT_TOKEN=${VAULT_TOKEN}
       - PORT=8080
       - GIN_MODE=release
@@ -53,7 +53,7 @@ services:
       - mongodb
       - vault
     environment:
-      - VAULT_ADDR=http://vault:8200 # Use HTTP
+      - VAULT_ADDR=http://vault:8200 # Use HTTP for dev environment
       # Other environment variables needed for testing
       - VAULT_TOKEN=${VAULT_TOKEN}
       - DB_HOST=mongodb

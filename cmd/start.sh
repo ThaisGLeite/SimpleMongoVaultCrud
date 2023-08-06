@@ -46,15 +46,12 @@ echo "Waiting for MongoDB to start..."
 sleep 3
 
 # Setup MongoDB root user
-docker exec docker-mongodb-1 mongo admin --eval 'db.dropUser("thaisdev");'
-docker exec docker-mongodb-1 mongo admin --eval 'db.createUser({user: "thaisdev", pwd: "DevEnv123", roles: [ { role: "userAdminAnyDatabase", db: "admin" }, { role: "dbOwner", db: "devenv" } ]});'
+docker exec docker_mongodb_1 mongo admin --eval 'db.dropUser("thaisdev");'
+docker exec docker_mongodb_1 mongo admin --eval 'db.createUser({user: "thaisdev", pwd: "DevEnv123", roles: [ { role: "userAdminAnyDatabase", db: "admin" }, { role: "dbOwner", db: "devenv" } ]});'
 
 # Start the API Docker container
 docker-compose -f ../docker/docker-compose.yml up --build -d api
 
 # Start the Test Docker container
 echo "Starting tests..."
-docker-compose -f ../docker/docker-compose.yml run --build test
-
-# Stop and remove only the test container
-docker-compose -f ../docker/docker-compose.yml rm -f test
+docker-compose -f ../docker/docker-compose.yml run --rm test
