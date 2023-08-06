@@ -36,20 +36,29 @@ To run the project, you need the following:
 
 Clone the repository:
 
-1. `git clone https://github.com/username/simplecrud.git`
+1. `git clone https://github.com/ThaisGLeite/SimpleMongoVaultCrud.git`
 2. `cd simplecrud`
 
 Build the project:
 
 1. `go build`
 
-## Running the Project :running:
+### How to Start the Project in development mode :rocket:
 
-Set up your MongoDB and Vault instances, then run:
+To start the project in development mode and its components, you can use the `start.sh` bash script located in the `cmd` directory. The script performs the following steps:
 
-1. `./simplecrud`
+1. Stops any running containers related to the project.
+2. Builds the Vault Docker image and starts the Vault Docker container.
+3. Initializes the Vault server and stores the keys in `keys.txt`.
+4. Extracts unseal keys and the root token.
+5. Unseals the Vault using the extracted keys.
+6. Enables and stores MongoDB credentials in Vault.
+7. Starts the MongoDB Docker container.
+8. Sets up the MongoDB root user.
+9. Starts the API Docker container.
+10. Starts the Test Docker container.
 
-The server will start at the default port 8080.
+**Remember that this sets only a very basic development mode and Hashicorp vault should never be used like this in a production environment**
 
 ## API Endpoints :link:
 
