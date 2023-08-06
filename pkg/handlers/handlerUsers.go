@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"simplecrud/pkg/models"
 	"simplecrud/pkg/user"
@@ -41,7 +42,11 @@ func (u *UserHandler) GetUser(c *gin.Context) {
 
 	user, err := u.userService.GetUser(c, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error. " + err.Error()})
+		if errors.Is(err, user.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error. " + err.Error()})
+		}
 		return
 	}
 
@@ -102,5 +107,5 @@ func (u *UserHandler) DeleteUser(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
+	c.JSON(http.StatusNoContent, gin.H{"message": "User deleted successfully"})
 }

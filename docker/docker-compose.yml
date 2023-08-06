@@ -20,8 +20,8 @@ services:
       - 27017:27017
     volumes:
       - ./mongodb/data:/data/db
-      - ./mongodb/mongodb.conf:/etc/mongodb.conf # Mount the MongoDB configuration file into the container
-    command: mongod --config /etc/mongodb.conf
+      - ./mongodb/mongod.conf:/etc/mongod.conf # Mount the MongoDB configuration file into the container
+    command: mongod --config /etc/mongod.conf
     networks:
       - mynetwork
 
@@ -42,6 +42,23 @@ services:
       - DB_HOST=mongodb
       - DB_PORT=27017
       - DB_NAME=devenv
+    networks:
+      - mynetwork
+
+  test:
+    build:
+      context: ../ # root of project
+      dockerfile: docker/app/Dockerfile.test # path to the test Dockerfile
+    depends_on:
+      - mongodb
+      - vault
+    environment:
+      - VAULT_ADDR=http://vault:8200 # Use HTTP
+      # Other environment variables needed for testing
+      - VAULT_TOKEN=${VAULT_TOKEN}
+      - DB_HOST=mongodb
+      - DB_PORT=27017
+      - DB_NAME=devenv # possibly a different database for testing in the future
     networks:
       - mynetwork
 

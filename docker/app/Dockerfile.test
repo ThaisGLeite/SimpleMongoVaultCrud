@@ -1,0 +1,20 @@
+# Using the same Go image as in your main Dockerfile
+FROM golang:1.20-buster AS test
+
+# Set the current working directory inside the container
+WORKDIR /app
+
+# Copy go mod and sum files
+COPY go.mod go.sum ./
+
+# Download all dependencies
+RUN go mod download
+
+# Copy all source files
+COPY pkg ./pkg
+COPY cmd ./cmd
+COPY utils ./utils
+
+# Run the tests
+CMD ["go", "test", "./..."]
+

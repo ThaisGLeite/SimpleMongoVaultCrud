@@ -1,7 +1,7 @@
 # Use the official MongoDB Docker image as a base
 FROM mongo:5.0.19
 
-# MongoDB data will be stored in /data/db, make mongodb the owner
+# Create the directory for MongoDB data and make mongodb the owner
 RUN mkdir -p /data/db && chown -R mongodb:mongodb /data/db
 
 # Run the MongoDB server as the mongodb user
