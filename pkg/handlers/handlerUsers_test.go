@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"simplecrud/pkg/models"
@@ -52,7 +53,7 @@ func TestGetAllUsers(t *testing.T) {
 
 	objectID, _ := primitive.ObjectIDFromHex("507f1f77bcf86cd799439011")
 	users := []models.User{
-		{ID: objectID, Name: "JohnDoe"},
+		{ID: objectID, Name: "JohnDoe", Age: 23, Email: "teste@teste.com.br", Password: "P@ssword7", Address: "Rua Romao Batista"},
 	}
 
 	// Success case
@@ -78,14 +79,13 @@ func TestGetAllUsers(t *testing.T) {
 	mockUserService.AssertExpectations(t)
 }
 
-func TestGetUser(t *testing.T) {
+func TestGetUserSuccess(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockUserService := new(userServiceMock)
 	userHandler := NewUserHandler(mockUserService)
 	objectID, _ := primitive.ObjectIDFromHex("507f1f77bcf86cd799439011")
 	user := models.User{ID: objectID, Name: "JohnDoe"}
 
-	// Success case
 	mockUserService.On("GetUser", objectID.Hex()).Return(user, nil)
 	router := gin.Default()
 	router.GET("/users/:id", userHandler.GetUser)
@@ -94,32 +94,43 @@ func TestGetUser(t *testing.T) {
 	router.ServeHTTP(response, request)
 	assert.Equal(t, http.StatusOK, response.Code)
 	mockUserService.AssertExpectations(t)
+}
 
-	// Error case
-	mockUserService = new(userServiceMock)
-	userHandler = NewUserHandler(mockUserService)
+func TestGetUserError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockUserService := new(userServiceMock)
+	userHandler := NewUserHandler(mockUserService)
+	objectID, _ := primitive.ObjectIDFromHex("507f1f77bcf86cd799439011")
+
 	mockUserService.On("GetUser", objectID.Hex()).Return(models.User{}, errors.New("Not Found"))
-	router = gin.Default()
+	router := gin.Default()
 	router.GET("/users/:id", userHandler.GetUser)
-	response = httptest.NewRecorder()
-	request, _ = http.NewRequest(http.MethodGet, "/users/"+objectID.Hex(), nil)
+	response := httptest.NewRecorder()
+	request, _ := http.NewRequest(http.MethodGet, "/users/"+objectID.Hex(), nil)
 	router.ServeHTTP(response, request)
 	assert.Equal(t, http.StatusInternalServerError, response.Code)
 	mockUserService.AssertExpectations(t)
 }
 
-func TestCreateUser(t *testing.T) {
+func TestCreateUserSuccess(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockUserService := new(userServiceMock)
 	userHandler := NewUserHandler(mockUserService)
-	objectID, _ := primitive.ObjectIDFromHex("507f1f77bcf86cd799439011")
-	user := models.User{ID: objectID, Name: "JohnDoe"}
 
-	// Prepare the JSON payload for the request body
-	payload, _ := json.Marshal(user)
+	user := models.User{
+		Name:     "JohnDoe",
+		Age:      23,
+		Email:    "teste@teste.com.br",
+		Password: "P@sswoooord7",
+		Address:  "Rua Romao Batista",
+	}
+
+	payload, err := json.Marshal(user)
+	if err != nil {
+		fmt.Println(err)
+	}
 	body := bytes.NewReader(payload)
 
-	// Success case
 	mockUserService.On("CreateUser", mock.Anything, user).Return(user, nil)
 	router := gin.Default()
 	router.POST("/users", userHandler.CreateUser)
@@ -127,35 +138,50 @@ func TestCreateUser(t *testing.T) {
 	request, _ := http.NewRequest(http.MethodPost, "/users", body)
 	request.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(response, request)
-	assert.Equal(t, http.StatusCreated, response.Code) // Assuming you return 201 for successful creation
-	mockUserService.AssertExpectations(t)
-
-	// Error case
-	mockUserService = new(userServiceMock)
-	userHandler = NewUserHandler(mockUserService)
-	mockUserService.On("CreateUser", mock.Anything, user).Return(models.User{}, errors.New("Creation Failed"))
-	router = gin.Default()
-	router.POST("/users", userHandler.CreateUser)
-	response = httptest.NewRecorder()
-	request, _ = http.NewRequest(http.MethodPost, "/users", body)
-	request.Header.Set("Content-Type", "application/json")
-	router.ServeHTTP(response, request)
-	assert.Equal(t, http.StatusInternalServerError, response.Code) // Assuming you return 500 for creation failure
+	assert.Equal(t, http.StatusCreated, response.Code)
 	mockUserService.AssertExpectations(t)
 }
 
-func TestUpdateUser(t *testing.T) {
+func TestCreateUserError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockUserService := new(userServiceMock)
+	userHandler := NewUserHandler(mockUserService)
+
+	user := models.User{
+		Name:     "JohnDoe",
+		Age:      23,
+		Email:    "teste@teste.com.br",
+		Password: "P@sswoooord7",
+		Address:  "Rua Romao Batista",
+	}
+
+	payload, err := json.Marshal(user)
+	if err != nil {
+		fmt.Println(err)
+	}
+	body := bytes.NewReader(payload)
+
+	mockUserService.On("CreateUser", mock.Anything, user).Return(models.User{}, errors.New("Creation Failed"))
+	router := gin.Default()
+	router.POST("/users", userHandler.CreateUser)
+	response := httptest.NewRecorder()
+	request, _ := http.NewRequest(http.MethodPost, "/users", body)
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(response, request)
+	assert.Equal(t, http.StatusInternalServerError, response.Code)
+	mockUserService.AssertExpectations(t)
+}
+
+func TestUpdateUserSuccess(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	mockUserService := new(userServiceMock)
 	userHandler := NewUserHandler(mockUserService)
 	objectID, _ := primitive.ObjectIDFromHex("507f1f77bcf86cd799439011")
 	user := models.User{ID: objectID, Name: "UpdatedUser"}
 
-	// Prepare the JSON payload for the request body
 	payload, _ := json.Marshal(user)
 	body := bytes.NewReader(payload)
 
-	// Success case
 	mockUserService.On("UpdateUser", mock.AnythingOfType("string"), mock.AnythingOfType("models.User")).Return(user, nil)
 	router := gin.Default()
 	router.PUT("/users/:id", userHandler.UpdateUser)
@@ -163,17 +189,25 @@ func TestUpdateUser(t *testing.T) {
 	request, _ := http.NewRequest(http.MethodPut, "/users/"+objectID.Hex(), body)
 	request.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(response, request)
-	assert.Equal(t, http.StatusOK, response.Code) // Assuming you return 200 for successful update
+	assert.Equal(t, http.StatusOK, response.Code)
 	mockUserService.AssertExpectations(t)
+}
 
-	// Error case
-	mockUserService = new(userServiceMock)
-	userHandler = NewUserHandler(mockUserService)
+func TestUpdateUserError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	mockUserService := new(userServiceMock)
+	userHandler := NewUserHandler(mockUserService)
+	objectID, _ := primitive.ObjectIDFromHex("507f1f77bcf86cd799439011")
+	user := models.User{ID: objectID, Name: "UpdatedUser"}
+
+	payload, _ := json.Marshal(user)
+	body := bytes.NewReader(payload)
+
 	mockUserService.On("UpdateUser", mock.AnythingOfType("string"), mock.AnythingOfType("models.User")).Return(models.User{}, errors.New("Update Failed"))
-	router = gin.Default()
+	router := gin.Default()
 	router.PUT("/users/:id", userHandler.UpdateUser)
-	response = httptest.NewRecorder()
-	request, _ = http.NewRequest(http.MethodPut, "/users/"+objectID.Hex(), body)
+	response := httptest.NewRecorder()
+	request, _ := http.NewRequest(http.MethodPut, "/users/"+objectID.Hex(), body)
 	request.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(response, request)
 	assert.Equal(t, http.StatusInternalServerError, response.Code)
